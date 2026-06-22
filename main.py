@@ -72,7 +72,6 @@ def send_message(text: str) -> None:
     res = requests.post(url, json={
         "chat_id": CHAT_ID,
         "text": text,
-        "parse_mode": "Markdown",
         "disable_web_page_preview": True,
     }, timeout=10)
     res.raise_for_status()
