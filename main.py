@@ -17,7 +17,8 @@ def now_kst():
 def is_today(pub_date):
     try:
         dt = datetime.strptime(pub_date, "%a, %d %b %Y %H:%M:%S %z")
-        return dt.astimezone(KST).date() == datetime.now(KST).date()
+        diff = datetime.now(KST) - dt.astimezone(KST)
+        return diff.total_seconds() <= 86400  # 86400초 = 24시간
     except Exception:
         return False
 
