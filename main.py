@@ -6,6 +6,7 @@ TELEGRAM_TOKEN      = os.environ.get("TELEGRAM_TOKEN", "")
 CHAT_ID             = os.environ.get("CHAT_ID", "")
 NAVER_CLIENT_ID     = os.environ.get("NAVER_CLIENT_ID", "")
 NAVER_CLIENT_SECRET = os.environ.get("NAVER_CLIENT_SECRET", "")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 
 KEYWORDS = ["민자사업", "민자", "butx"]
 
@@ -36,6 +37,47 @@ def search_news(keyword, display=10):
     res.raise_for_status()
     return res.json().get("items", [])
 
+def filter_by_ai(keyword, items):
+    if not items:
+        return []
+
+    # 기사 목록 텍스트로 변환
+    articles = ""
+    for i, item in enumerate(items):
+        title = clean(item["title"])
+        desc = clean(item["description"])
+        articles += str(i) + ". " + title + " - " + desc + "\n"
+
+    prompt = (
+        "아래는 '" + keyword + "' 키워드로 검색된 뉴스 목록입니다.\n"
+        "각 기사가 SOC 도로, 철도 민간투자사업과 직접적으로 관련있는지 판단해서 "
+        "관련있는 기사 번호만 쉼표로 구분해서 답해주세요. "
+        "예시: 0,2,4\n"
+        "관련 없으면 '없음'이라고만 답하세요.\n\n"
+        + articles
+    )
+
+    url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
+    params = {"key": GEMINI_API_KEY}
+    body = {"contents": [{"parts": [{"text": prompt}]}]}
+
+    try:
+        res = requests.post(url, params=params, json=body, timeout=15)
+        res.raise_for_status()
+        answer = res.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+
+        if answer == "없음":
+            return []
+
+        indices = [int(x.strip()) for x in answer.split(",") if x.strip().isdigit()]
+        return [items[i] for i in indices if i < len(items)]
+
+    except Exception as e:
+        print("Gemini 오류: " + str(e))
+        return items  # 오류 시 필터링 없이 전체 반환
+
+
+
 def build_message():
     lines = ["📰 오늘의 뉴스 브리핑", "🕖 " + now_kst() + " KST", ""]
     total = 0
@@ -43,6 +85,8 @@ def build_message():
 
     for keyword in KEYWORDS:
         items = search_news(keyword)
+
+        # 오늘 기사 + 중복 제거
         filtered = []
         for item in items:
             link = item.get("originallink") or item.get("link")
@@ -52,6 +96,9 @@ def build_message():
                 continue
             seen.add(link)
             filtered.append(item)
+
+        # AI 필터링 추가
+        filtered = filter_by_ai(keyword, filtered)
 
         if not filtered:
             continue
@@ -63,8 +110,8 @@ def build_message():
 
         for i, item in enumerate(filtered, 1):
             title = clean(item["title"])
-            desc  = clean(item["description"])
-            link  = item.get("originallink") or item["link"]
+            desc = clean(item["description"])
+            link = item.get("originallink") or item["link"]
             lines.append(str(i) + ". " + title)
             lines.append(desc)
             lines.append("🔗 " + link)
