@@ -1,5 +1,6 @@
 import os
 import requests
+import google.generativeai as genai
 from datetime import datetime, timezone, timedelta
 
 TELEGRAM_TOKEN      = os.environ.get("TELEGRAM_TOKEN", "")
@@ -41,7 +42,9 @@ def filter_by_ai(keyword, items):
     if not items:
         return []
 
-    # 기사 목록 텍스트로 변환
+    genai.configure(api_key=GEMINI_API_KEY)
+    model = genai.GenerativeModel('gemini-1.5-flash')
+
     articles = ""
     for i, item in enumerate(items):
         title = clean(item["title"])
@@ -57,25 +60,21 @@ def filter_by_ai(keyword, items):
         + articles
     )
 
-    url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
-    params = {"key": GEMINI_API_KEY}
-    body = {"contents": [{"parts": [{"text": prompt}]}]}
-
     try:
-        res = requests.post(url, params=params, json=body, timeout=15)
-        res.raise_for_status()
-        answer = res.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+        response = model.generate_content(prompt)
+        answer = response.text.strip()
+        print("Gemini 응답 [" + keyword + "]: " + answer)
 
         if answer == "없음":
             return []
 
         indices = [int(x.strip()) for x in answer.split(",") if x.strip().isdigit()]
+        print("필터링 결과: " + str(len(indices)) + "건 통과")
         return [items[i] for i in indices if i < len(items)]
 
     except Exception as e:
         print("Gemini 오류: " + str(e))
-        return items  # 오류 시 필터링 없이 전체 반환
-
+        return items
 
 
 def build_message():
