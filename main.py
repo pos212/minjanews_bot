@@ -57,7 +57,7 @@ def filter_by_ai(keyword, items):
         + articles
     )
 
-    url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
+    url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
     params = {"key": GEMINI_API_KEY}
     body = {"contents": [{"parts": [{"text": prompt}]}]}
 
