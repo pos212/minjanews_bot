@@ -62,7 +62,7 @@ def filter_by_ai(keyword, items):
 
     try:
         response = client.models.generate_content(
-            model="gemini-2.0-flash",
+            model="gemini-2.0-flash-lite",
             contents=prompt
         )
         answer = response.text.strip()
