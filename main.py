@@ -1,6 +1,6 @@
 import os
 import requests
-import google.generativeai as genai
+from google import genai
 from datetime import datetime, timezone, timedelta
 
 TELEGRAM_TOKEN      = os.environ.get("TELEGRAM_TOKEN", "")
@@ -38,12 +38,12 @@ def search_news(keyword, display=10):
     res.raise_for_status()
     return res.json().get("items", [])
 
+
 def filter_by_ai(keyword, items):
     if not items:
         return []
 
-    genai.configure(api_key=GEMINI_API_KEY)
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    client = genai.Client(api_key=GEMINI_API_KEY)
 
     articles = ""
     for i, item in enumerate(items):
@@ -61,7 +61,10 @@ def filter_by_ai(keyword, items):
     )
 
     try:
-        response = model.generate_content(prompt)
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=prompt
+        )
         answer = response.text.strip()
         print("Gemini 응답 [" + keyword + "]: " + answer)
 
@@ -75,8 +78,7 @@ def filter_by_ai(keyword, items):
     except Exception as e:
         print("Gemini 오류: " + str(e))
         return items
-
-
+        
 def build_message():
     lines = ["📰 오늘의 뉴스 브리핑", "🕖 " + now_kst() + " KST", ""]
     total = 0
